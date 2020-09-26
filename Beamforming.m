@@ -214,9 +214,3 @@ fft_yf=plot(xfft-fe/N,yfft2);
 title('Fourier transform of yf','fontweight','bold','fontsize',14);
 xlabel('Frequency[Hz]','fontsize',14);
 ylabel('Amplitude','fontsize',14);
-
-
-
-
-        
-        
