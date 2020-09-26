@@ -1,22 +1,24 @@
 clear all
-%coeficienti
-Na=25;%numar antene ale retelei
-Ns=3;%numar semnale receptionate incidente la retea Ns<=Na-2
-Nu=1;%numar semnale utile;
-Ni=2;%numar semanel interferente;
-N=1024;%numar esantioane
-P=floor(Na/2)+1;%numar antene per subretea P=(Na/2)+1
-L=Na-P+1;%numar matrice de corelatie
-f=10^9;%frecventa purtatoare
-fe=48000;%frecventa de esantionare
-lambda=(3*(10^8))/f; %lungimea de unda
-beta=(2*pi)/lambda; %constanta de propagare
-dist=lambda/2;%distanta dintre antene
 
-%matricea semnalelor de emisie
-A=[1 0.9 0.9];%vectorul amplitudinilor 
-fs=[3000 6000 9000];%vectorul frecventelor
-theta=[70 150 30];%vectorul directiilor de sosire
+%coef
+
+Na=25;%number of antennas
+Ns=3;%total signals recived by atennas array Ns<=Na-2
+Nu=1;%useful signals
+Ni=2;%interfering signals
+N=1024;%samples number
+P=floor(Na/2)+1;%antennas number per subarray P=(Na/2)+1
+L=Na-P+1;%correlation matrix number
+f=10^9;%carrier frequency
+fe=48000;%sampling frequency
+lambda=(3*(10^8))/f; %wavelength
+beta=(2*pi)/lambda; %propagation constant
+dist=lambda/2;%distance between antennas
+
+%emission signal matrix
+A=[1 0.9 0.9];%amplitude vector
+fs=[3000 6000 9000];%frequency vector
+theta=[70 150 30];%DOA vector
 s=zeros(Ns,N-1);
 for i=1:Ns
     s(i,:)=A(i)*exp(1i*2*pi*fs(i)/fe*(1:N-1));
@@ -27,8 +29,8 @@ for i=1:Na
         e1(i,j)=exp((-1i)*beta*dist*(i-1)*cos(theta(j)/180*pi));%???(vector directie)
     end
 end
-y1=e1*s;%semnalele de la emisie
-y2=awgn(y1,10);%semnalele de la receptie(zgomot adaugat SNR=10-important!!!)
+y1=e1*s;%emission signals
+y2=awgn(y1,10);%reception signals(added noise SNR=10-important!!!)
 
 %CAPON algorithm
 R=zeros(Na,Na);
@@ -41,7 +43,7 @@ for i=1:Na
 end
 f1=zeros(1,181);
 for j=1:181
-    f1(j)=1/((((e2(:,j))')*inv(R)*e2(:,j)));%principiul de functionare???
+    f1(j)=1/((((e2(:,j))')*inv(R)*e2(:,j)));
 end
 
 %MUSIC algorithm
@@ -66,8 +68,8 @@ for j=1:181
     f2(j)=1/((((e2(:,j))')*q*(q')*e2(:,j)));
 end
 
-%Smooth MUSIC algorithm (se modifica valorile graficului??)
-Re=zeros(P,P);%P-numar antene per subretea!!!
+%Smooth MUSIC algorithm
+Re=zeros(P,P);%P-antennas number per subarray!!!
 y3=zeros(P,N);
 for i=1:L
     y3=y2(i:(i+P-1),:);
@@ -98,7 +100,7 @@ end
 %locs2=sort(locs(1:Ns),'descend');
 thetaf=thetad(locs(1:Ns));%by me
 
-%Formarea de fascicul (Beamforming)
+%Beamforming
 W=zeros(1,Na);
 W((Ns+1):Na)=1;
 delta=zeros(Ns);
@@ -108,7 +110,7 @@ for i=1:Ns
         delta(i,j)=exp((-1i)*beta*dist*(j-1)*cos(thetaf(i)/180*pi));
     end
 end
-    %termenii liberi
+    %free terms
 V=zeros(Ns,1);
 V(1:Nu)=Na/Nu;
 V2=zeros(Ns,1);
@@ -117,7 +119,7 @@ for i=1:Ns
         V2(i)=V(i)-exp((-1i)*beta*dist*(j-1)*cos(thetaf(i)/180*pi));
     end
 end
-    %marticea deltaN si det coef W
+    %deltaN matrix and coef W determination
 deltaN=zeros(Ns);
 deltaN=delta;
 for j=1:Ns
@@ -133,16 +135,15 @@ for i=1:Na
     end
 end
 C=W*e4;
-y4=sum(y2); %semnalul nefiltrat cu beamforming
-yf=W*y2; %semnalul filtrat folosind formarea de fascicul
+y4=sum(y2); %unfiltered signal with beamforming
+yf=W*y2; %filtered signal using beamforming
 
-%transformarea esantioanelor in domeniul frecventa pentru afisarea TF
-%ale semnalelor y4 si yf
-N2=200; %numar esantioane pentru graficele semnalelor y4,yf respectiv TF. ale lor
+%samples transformation in frequency domain for ploting TF for y4 and yf signals
+N2=200; %number of samples for y4 and yf graphs and Fourier Transformation of them
 xfft=fe/N*(1:N-1);
 yfft1=abs(fft(y4(1:N-1)));
 yfft2=abs(fft(yf(1:N-1)));
-%gasirea frecventelor fiecarui semnal pe baza TF si sortarea lor
+%frequency finder of each signal with TF and signal sorting
 [ampld_y4,fd_y4]=findpeaks(yfft1);
 [amplf_y4,locf]=sort(ampld_y4,'descend');
 ff_y4=fd_y4(locf(1:Ns));
@@ -159,60 +160,60 @@ ff_y4f=fe/N*(ff_y4);
 %[peaksfftd1,locsfftd1]=findpeaks(abs(fft(yf))); %??
 %[peaksfftd2,locsfftd2]=sort(peaksfftd1,'descend');
 
-%comparatia intre cele 3 metode
+%Comparation between the three methods
 figure
 subplot(3,1,1);
 set(gcf,'color','w');
 plot(10*log10(real((f1(1:180)))));
 title(['Capon', ' (Na=',num2str(Na),', Ns=',num2str(Ns),', Nu=',num2str(Nu),', Ni=',num2str(Ni),')'],'fontweight','bold','fontsize',14)
-xlabel('Unghiul directiei de sosire[grade]','fontsize',14);
-ylabel('Spectrul Capon[dB]','fontsize',14);
+xlabel('Direction of Arrival[grades]','fontsize',14);
+ylabel('Capon Spectrum[dB]','fontsize',14);
 subplot(3,1,2);
 set(gcf,'color','w');
 plot(10*log10((real(f2(1:180)))));
 title(['MUSIC' ' (Na=',num2str(Na),', Ns=',num2str(Ns),', Nu=',num2str(Nu),', Ni=',num2str(Ni),')'],'fontweight','bold','fontsize',14)
-xlabel('Unghiul directiei de sosire[grade]','fontsize',14);
-ylabel('Spectrul MUSIC[dB]','fontsize',14);
+xlabel('Direction of Arrival[grades]','fontsize',14);
+ylabel('MUSIC Spectrum[dB]','fontsize',14);
 subplot(3,1,3);
 plot(10*log10((real(f3(1:180)))));
 title(['Smooth MUSIC' ' (Na=',num2str(Na),', Ns=',num2str(Ns),', Nu=',num2str(Nu),', Ni=',num2str(Ni),', P=',num2str(P),')'],'fontweight','bold','fontsize',14);
-xlabel('Unghiul directiei de sosire[grade]','fontsize',14);
-ylabel('Spectrul Sm. MUSIC[dB]','fontsize',14);
+xlabel('Direction of Arrival[degrees]','fontsize',14);
+ylabel('Sm. MUSIC Spectrum[dB]','fontsize',14);
 
-%Graficul caracteristicii de directivitate
+%Antenna array radiation pattern graph
 figure
 set(gcf,'color','w');
 plot(abs(C(1:180)));
-title(['Caracteristica de directivitate C' ' (directii de maxim=',num2str(thetaf(1:Nu)),', directii de minim=',num2str(thetaf(Nu+1:Ns)),')'],'fontweight','bold','fontsize',14)
-xlabel('Unghiul de incidenta [grade]','fontsize',14);
-ylabel('Factorul de transfer al retelei','fontsize',14);
+title(['Radiation patern C' ' (maximum direction=',num2str(thetaf(1:Nu)),', minimum direction=',num2str(thetaf(Nu+1:Ns)),')'],'fontweight','bold','fontsize',14)
+xlabel('Angle of incidence [degrees]','fontsize',14);
+ylabel('Array transfer factor','fontsize',14);
 
-%Graficele lui yf si y4, respectiv TF(yf) si TF(y4)
+%yf, y4, TF(yf) and TF(y4) graphs
 figure
 subplot(2,2,1);
 set(gcf,'color','w');
 plot(real(y4(1:200)));
-title('Semnalul receptionat y4 fara Beamforming','fontweight','bold','fontsize',14);
-xlabel('Numar esantioane','fontsize',14);
-ylabel('Amplitudine','fontsize',14);
+title('y4 signal recived without Beamforming','fontweight','bold','fontsize',14);
+xlabel('Samples number','fontsize',14);
+ylabel('Amplitude','fontsize',14);
 subplot(2,2,2);
 set(gcf,'color','w');
 plot(real(yf(1:200)));
-title('Semnalul receptionat yf cu Beamforming','fontweight','bold','fontsize',14);
-xlabel('Numar esantioane','fontsize',14);
-ylabel('Amplitudine','fontsize',14);
+title('yf signal recived with Beamforming','fontweight','bold','fontsize',14);
+xlabel('Samples number','fontsize',14);
+ylabel('Amplitude','fontsize',14);
 subplot(2,2,3);
 set(gcf,'color','w');
 fft_y4=plot(xfft-fe/N,yfft1);
-title(['Transformata Forirer a lui y4',' (fu=',num2str(ff_y4f(1:Nu)),' fi=',num2str(ff_y4f(Nu+1:Ns)),')'],'fontweight','bold','fontsize',14);
-xlabel('Frecventa[Hz]','fontsize',14);
-ylabel('Amplitudine','fontsize',14);
+title(['Fourier transfor of y4',' (fu=',num2str(ff_y4f(1:Nu)),' fi=',num2str(ff_y4f(Nu+1:Ns)),')'],'fontweight','bold','fontsize',14);
+xlabel('Frequency[Hz]','fontsize',14);
+ylabel('Amplitude','fontsize',14);
 subplot(2,2,4);
 set(gcf,'color','w');
 fft_yf=plot(xfft-fe/N,yfft2);
-title('Transformata Fourier a lui yf','fontweight','bold','fontsize',14);
-xlabel('Frecventa[Hz]','fontsize',14);
-ylabel('Amplitudine ','fontsize',14);
+title('Fourier transform of yf','fontweight','bold','fontsize',14);
+xlabel('Frequency[Hz]','fontsize',14);
+ylabel('Amplitude','fontsize',14);
 
 
 
